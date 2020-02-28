@@ -1,0 +1,52 @@
+---
+version: '3.7'
+
+services:
+
+  minio-test:
+    image: minio-test
+    container_name: minio-test
+    environment:
+      LOG_LEVEL: 'INFO'
+      SOURCE_MEDIA_LOCATION: '/tmp/something.mp4'
+      ACCESS_KEY_ID: 'miniotester'
+      SECRET_ACCESS_KEY: 'miniotester'
+      BUCKET: 'dev'
+      REGION: 'us-east-1'
+      ENDPOINT_URL: 'http://minio:9000'
+    depends_on:
+      - minio
+    volumes:
+      - type: bind
+        source: ./test.mp4
+        target: /tmp/something.mp4
+        read_only: true
+      - type: bind
+        source: ./wait-for
+        target: /tmp/wait-for
+        read_only: true
+    # Run the command when minio is ready and listening
+    command: sh -c '/tmp/wait-for minio:9000 -- pipenv run python app/run.py'
+
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    environment:
+      MINIO_ACCESS_KEY: "miniotester"
+      MINIO_SECRET_KEY: "miniotester"
+    expose:
+      - '9000'
+    ports:
+      - target: 9000
+        published: 9000
+        protocol: tcp
+        mode: host
+    command:
+      "server /data"
+    volumes:
+      - type: volume
+        source: s3-content-dev
+        target: /data
+
+volumes:
+  s3-content-dev:
